@@ -7,4 +7,5 @@ configargparse
 lpips
 imageio-ffmpeg
 kornia
+plyfile
 wandb
