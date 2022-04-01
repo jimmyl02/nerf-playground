@@ -2,11 +2,13 @@ import configargparse
 
 def config_parser(cmd=None):
     parser = configargparse.ArgumentParser()
+    parser.add_argument('--config', is_config_file=True,
+                        help='config file path')
     parser.add_argument("--expname", type=str,
                         help='experiment name')
     parser.add_argument("--basedir", type=str, default='./log',
                         help='where to store ckpts and logs')
-    parser.add_argument("--add_timestamp", type=int, default=1,
+    parser.add_argument("--add_timestamp", type=int, default=0,
                         help='add timestamp to dir')
     parser.add_argument("--datadir", type=str, default='./data/llff/fern',
                         help='input data directory')
@@ -25,7 +27,7 @@ def config_parser(cmd=None):
     parser.add_argument("--n_iters", type=int, default=30000)
 
     parser.add_argument('--dataset_name', type=str, default='blender',
-                        choices=['blender', 'llff', 'nsvf', 'dtu','tankstemple'])
+                        choices=['blender', 'llff', 'nsvf', 'dtu','tankstemple', 'own_data'])
 
 
     # training options
@@ -55,13 +57,13 @@ def config_parser(cmd=None):
     
     # model
     # volume options
-    parser.add_argument("--n_lamb_sigma", type=str, default='[16,4,4]')
-    parser.add_argument("--n_lamb_sh", type=str, default='[48,12,12]')
+    parser.add_argument("--n_lamb_sigma", type=int, action="append")
+    parser.add_argument("--n_lamb_sh", type=int, action="append")
     parser.add_argument("--data_dim_color", type=int, default=27)
 
     parser.add_argument("--rm_weight_mask_thre", type=float, default=0.0001,
                         help='mask points in ray marching')
-    parser.add_argument("--alpha_mask_thre", type=float, default=0.08,
+    parser.add_argument("--alpha_mask_thre", type=float, default=0.0001,
                         help='threshold for creating alpha mask volume')
     parser.add_argument("--distance_scale", type=float, default=25,
                         help='scaling sampling distance for computation')
@@ -88,6 +90,7 @@ def config_parser(cmd=None):
     parser.add_argument("--render_test", type=int, default=0)
     parser.add_argument("--render_train", type=int, default=0)
     parser.add_argument("--render_path", type=int, default=0)
+    parser.add_argument("--export_mesh", type=int, default=0)
 
     # rendering options
     parser.add_argument('--lindisp', default=False, action="store_true",
@@ -114,8 +117,8 @@ def config_parser(cmd=None):
     parser.add_argument('--N_voxel_final',
                         type=int,
                         default=300**3)
-    parser.add_argument("--upsamp_list", type=str, default="[2000, 3000, 4000, 5500]")
-    parser.add_argument("--update_AlphaMask_list", type=str, default="[2000, 3000, 4000, 5500,7000]")
+    parser.add_argument("--upsamp_list", type=int, action="append")
+    parser.add_argument("--update_AlphaMask_list", type=int, action="append")
 
     parser.add_argument('--idx_view',
                         type=int,

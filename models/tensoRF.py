@@ -177,9 +177,7 @@ class TensorVMSplit(TensorBase):
             n_comp, n_size = vector_comps[idx].shape[1:-1]
             
             dotp = torch.matmul(vector_comps[idx].view(n_comp,n_size), vector_comps[idx].view(n_comp,n_size).transpose(-1,-2))
-            # print(vector_comps[idx].shape, vector_comps[idx].view(n_comp,n_size).transpose(-1,-2).shape, dotp.shape)
             non_diagonal = dotp.view(-1)[1:].view(n_comp-1, n_comp+1)[...,:-1]
-            # print(vector_comps[idx].shape, vector_comps[idx].view(n_comp,n_size).transpose(-1,-2).shape, dotp.shape,non_diagonal.shape)
             total = total + torch.mean(torch.abs(non_diagonal))
         return total
 
@@ -219,13 +217,6 @@ class TensorVMSplit(TensorBase):
                                             align_corners=True).view(-1, *xyz_sampled.shape[:1])
             sigma_feature = sigma_feature + torch.sum(plane_coef_point * line_coef_point, dim=0)
 
-            # if 0==idx_plane:
-            #     sigma_feature = sigma_feature + torch.sum((plane_coef_point * line_coef_point)[[10,  0,  6,  4]], dim=0)
-            # elif 1==idx_plane:
-            #     sigma_feature = sigma_feature + torch.sum((plane_coef_point * line_coef_point)[[7, 6, 5, 8]], dim=0)
-            # else:
-            #     sigma_feature = sigma_feature + torch.sum((plane_coef_point * line_coef_point)[[15, 12,  3,  9]], dim=0)
-
         return sigma_feature
 
 
@@ -247,15 +238,6 @@ class TensorVMSplit(TensorBase):
 
         return self.basis_mat((plane_coef_point * line_coef_point).T)
 
-        # idx = [130,   8, 129, 113,  72,  26, 114, 137,  66, 101, 134,  46, 102, 127,
-        #         117,  20,   4, 118,  43, 103,  40,   3, 122,  10, 121,  86,  33,  38,
-        #          58, 123, 138,  11,  12,  35,  48,  18, 142, 110,   9,  25,  24,  56,
-        #          39,  61,  22,  59, 141, 115, 105,  45,  13,   7, 140,  64,  32,  47,
-        #          37,  21, 116,  67, 139, 128,  51,  49,   2,   1, 107,  57,  69,  71,
-        #          68,  89,   5,  95,  27,  44,  28,  74, 136,  84,  16,  63, 132,   6,
-        #          36,  85, 143,  55, 106,  17,  19,  97,  93,  96,  34,  29,  52,  30,
-        #          42,  88,  76, 112,  87, 109,  80,  31,  54,  91]
-        # return torch.mm((plane_coef_point * line_coef_point)[idx].T, self.basis_mat.weight[:,idx].T)
 
 
     @torch.no_grad()
@@ -278,13 +260,6 @@ class TensorVMSplit(TensorBase):
         self.app_plane, self.app_line = self.up_sampling_VM(self.app_plane, self.app_line, res_target)
         self.density_plane, self.density_line = self.up_sampling_VM(self.density_plane, self.density_line, res_target)
 
-        # for plane in self.density_plane:
-        #     plane.sub(0.1)
-
-        # scale = res_target[0]/self.line_coef.shape[2] #assuming xyz have the same scale
-        # plane_coef = F.interpolate(self.plane_coef.detach().data, scale_factor=scale, mode='bilinear',align_corners=True)
-        # line_coef  = F.interpolate(self.line_coef.detach().data, size=(res_target[0],1), mode='bilinear',align_corners=True)
-        # self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
         self.update_stepSize(res_target)
         print(f'upsamping to {res_target}')
 
@@ -297,7 +272,6 @@ class TensorVMSplit(TensorBase):
         # print(t_l, b_r,self.alphaMask.alpha_volume.shape)
         t_l, b_r = torch.round(torch.round(t_l)).long(), torch.round(b_r).long() + 1
         b_r = torch.stack([b_r, self.gridSize]).amin(0)
-        print('================>',t_l, b_r)
 
         for i in range(len(self.vecMode)):
             mode0 = self.vecMode[i]
@@ -314,9 +288,7 @@ class TensorVMSplit(TensorBase):
             self.app_plane[i] = torch.nn.Parameter(
                 self.app_plane[i].data[...,t_l[mode1]:b_r[mode1],t_l[mode0]:b_r[mode0]]
             )
-        # if self.alphaMask is not None:
-        #     alpha_volume = self.alphaMask.alpha_volume[:, :, t_l[2]:b_r[2], t_l[1]:b_r[1],t_l[0]:b_r[0]]
-        #     self.alphaMask = AlphaGridMask(self.device, new_aabb, alpha_volume)
+
 
         if not torch.all(self.alphaMask.gridSize == self.gridSize):
             t_l_r, b_r_r = t_l / (self.gridSize-1), (b_r-1) / (self.gridSize-1)
@@ -331,18 +303,14 @@ class TensorVMSplit(TensorBase):
         self.update_stepSize((newSize[0], newSize[1], newSize[2]))
 
 
-
-
-
-
 class TensorCP(TensorBase):
     def __init__(self, aabb, gridSize, device, **kargs):
         super(TensorCP, self).__init__(aabb, gridSize, device, **kargs)
 
 
     def init_svd_volume(self, res, device):
-        self.density_line = self.init_one_svd(self.density_n_comp, self.gridSize, 0.2, device)
-        self.app_line = self.init_one_svd(self.app_n_comp, self.gridSize, 0.2, device)
+        self.density_line = self.init_one_svd(self.density_n_comp[0], self.gridSize, 0.2, device)
+        self.app_line = self.init_one_svd(self.app_n_comp[0], self.gridSize, 0.2, device)
         self.basis_mat = torch.nn.Linear(self.app_n_comp[0], self.app_dim, bias=False).to(device)
 
 
@@ -351,7 +319,7 @@ class TensorCP(TensorBase):
         for i in range(len(self.vecMode)):
             vec_id = self.vecMode[i]
             line_coef.append(
-                torch.nn.Parameter(scale * torch.randn((1, n_component[i], gridSize[vec_id], 1))))
+                torch.nn.Parameter(scale * torch.randn((1, n_component, gridSize[vec_id], 1))))
         return torch.nn.ParameterList(line_coef).to(device)
 
     
@@ -375,10 +343,6 @@ class TensorCP(TensorBase):
                                         align_corners=True).view(-1, *xyz_sampled.shape[:1])
         line_coef_point = line_coef_point * F.grid_sample(self.density_line[2], coordinate_line[[2]],
                                         align_corners=True).view(-1, *xyz_sampled.shape[:1])
-
-        # line_feats = F.grid_sample(self.line_coef[:, -self.density_n_comp:], coordinate_line, align_corners=True).view(
-        #                                 3, self.density_n_comp, *xyz_sampled.shape[:1])
-        
         sigma_feature = torch.sum(line_coef_point, dim=0)
         
         
