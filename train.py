@@ -1,14 +1,12 @@
-
 import os
+import pwd
 from tqdm.auto import tqdm
 from opt import config_parser
-
-
 
 import json, random
 from renderer import *
 from utils import *
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 import datetime
 
 from dataLoader import dataset_dict
@@ -100,9 +98,11 @@ def reconstruction(args):
     os.makedirs(f'{logfolder}/imgs_vis', exist_ok=True)
     os.makedirs(f'{logfolder}/imgs_rgba', exist_ok=True)
     os.makedirs(f'{logfolder}/rgba', exist_ok=True)
-    summary_writer = SummaryWriter(logfolder)
+    # summary_writer = SummaryWriter(logfolder)
 
-
+    # init wandb logging
+    username = pwd.getpwuid(os.getuid()).pw_name
+    wandb.init(project=username + "_nerf", entity="reconstructor")
 
     # init parameters
     # tensorVM, renderer = init_parameters(args, train_dataset.scene_bbox.to(device), reso_list[0])
@@ -174,25 +174,29 @@ def reconstruction(args):
 
         # loss
         total_loss = loss
+        log_obj = {'iter': iteration}
         if Ortho_reg_weight > 0:
             loss_reg = tensorf.vector_comp_diffs()
             total_loss += Ortho_reg_weight*loss_reg
-            summary_writer.add_scalar('train/reg', loss_reg.detach().item(), global_step=iteration)
+            # summary_writer.add_scalar('train/reg', loss_reg.detach().item(), global_step=iteration)
+            log_obj['train/reg'] = loss_reg.detach().item()
         if L1_reg_weight > 0:
             loss_reg_L1 = tensorf.density_L1()
             total_loss += L1_reg_weight*loss_reg_L1
-            summary_writer.add_scalar('train/reg_l1', loss_reg_L1.detach().item(), global_step=iteration)
-
+            # summary_writer.add_scalar('train/reg_l1', loss_reg_L1.detach().item(), global_step=iteration)
+            log_obj['train/reg_l1'] = loss_reg_L1.detach().item()
         if TV_weight_density>0:
             TV_weight_density *= lr_factor
             loss_tv = tensorf.TV_loss_density(tvreg) * TV_weight_density
             total_loss = total_loss + loss_tv
-            summary_writer.add_scalar('train/reg_tv_density', loss_tv.detach().item(), global_step=iteration)
+            # summary_writer.add_scalar('train/reg_tv_density', loss_tv.detach().item(), global_step=iteration)
+            log_obj['train/reg_tv_density'] = loss_tv.detach().item()
         if TV_weight_app>0:
             TV_weight_app *= lr_factor
             loss_tv = loss_tv + tensorf.TV_loss_app(tvreg)*TV_weight_app
             total_loss = total_loss + loss_tv
-            summary_writer.add_scalar('train/reg_tv_app', loss_tv.detach().item(), global_step=iteration)
+            # summary_writer.add_scalar('train/reg_tv_app', loss_tv.detach().item(), global_step=iteration)
+            log_obj['train/reg_tv_app'] = loss_tv.detach().item()
 
         optimizer.zero_grad()
         total_loss.backward()
@@ -201,8 +205,10 @@ def reconstruction(args):
         loss = loss.detach().item()
         
         PSNRs.append(-10.0 * np.log(loss) / np.log(10.0))
-        summary_writer.add_scalar('train/PSNR', PSNRs[-1], global_step=iteration)
-        summary_writer.add_scalar('train/mse', loss, global_step=iteration)
+        # summary_writer.add_scalar('train/PSNR', PSNRs[-1], global_step=iteration)
+        # summary_writer.add_scalar('train/mse', loss, global_step=iteration)
+        log_obj['train/PSNR'] = PSNRs[-1]
+        log_obj['train/mse'] = loss
 
 
         for param_group in optimizer.param_groups:
@@ -222,9 +228,10 @@ def reconstruction(args):
         if iteration % args.vis_every == args.vis_every - 1:
             PSNRs_test = evaluation(test_dataset,tensorf, args, renderer, f'{logfolder}/imgs_vis/', N_vis=args.N_vis,
                                     prtx=f'{iteration:06d}_', N_samples=nSamples, white_bg = white_bg, ndc_ray=ndc_ray, compute_extra_metrics=False)
-            summary_writer.add_scalar('test/psnr', np.mean(PSNRs_test), global_step=iteration)
+            # summary_writer.add_scalar('test/psnr', np.mean(PSNRs_test), global_step=iteration)
+            log_obj['test/psnr'] = np.mean(PSNRs_test)
 
-
+        wandb.log(log_obj)
 
         if iteration in update_AlphaMask_list:
 
@@ -273,7 +280,8 @@ def reconstruction(args):
         os.makedirs(f'{logfolder}/imgs_test_all', exist_ok=True)
         PSNRs_test = evaluation(test_dataset,tensorf, args, renderer, f'{logfolder}/imgs_test_all/',
                                 N_vis=-1, N_samples=-1, white_bg = white_bg, ndc_ray=ndc_ray,device=device)
-        summary_writer.add_scalar('test/psnr_all', np.mean(PSNRs_test), global_step=iteration)
+        # summary_writer.add_scalar('test/psnr_all', np.mean(PSNRs_test), global_step=iteration)
+        wandb.log({'test/psnr_all', np.mean(PSNRs_test), 'iter': iteration})
         print(f'======> {args.expname} test all psnr: {np.mean(PSNRs_test)} <========================')
 
     if args.render_path:
