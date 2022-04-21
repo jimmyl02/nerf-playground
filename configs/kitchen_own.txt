@@ -3,7 +3,7 @@ datadir = ./data/kitchen
 expname =  tensorf_kitchen_VM
 basedir = ./log
 
-n_iters = 30000
+n_iters = 20000
 batch_size = 4096
 
 N_voxel_init = 2097156 # 128**3

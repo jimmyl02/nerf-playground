@@ -181,7 +181,6 @@ def reconstruction(args):
 
         loss = torch.mean((rgb_map - rgb_train) ** 2)
 
-
         # loss
         total_loss = loss
         log_obj = {'iter': iteration}
@@ -219,7 +218,6 @@ def reconstruction(args):
         # summary_writer.add_scalar('train/mse', loss, global_step=iteration)
         log_obj['train/PSNR'] = PSNRs[-1]
         log_obj['train/mse'] = loss
-
 
         for param_group in optimizer.param_groups:
             param_group['lr'] = param_group['lr'] * lr_factor

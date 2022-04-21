@@ -1,6 +1,7 @@
+
 dataset_name = own_data
-datadir = ./data/kitchen
-expname =  tensorf_kitchen_VM
+datadir = ./data/hat
+expname =  tensorf_hat_VM
 basedir = ./log
 
 n_iters = 30000
@@ -19,6 +20,7 @@ render_test = 1
 n_lamb_sigma = [16,16,16]
 n_lamb_sh = [48,48,48]
 model_name = TensorVMSplit
+
 
 shadingMode = MLP_Fea
 fea2denseAct = softplus
