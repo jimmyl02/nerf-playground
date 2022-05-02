@@ -71,7 +71,7 @@ def render_test(args):
                                 N_vis=-1, N_samples=-1, white_bg = white_bg, ndc_ray=ndc_ray,device=device,compute_extra_metrics=False)
         print(f'======> {args.expname} train all psnr: {np.mean(PSNRs_test)} <========================')
 
-    if args.render_test:
+    if args.render_test and not args.render_path:
         os.makedirs(f'{logfolder}/{args.expname}/imgs_test_all', exist_ok=True)
         evaluation(test_dataset,tensorf, args, renderer, f'{logfolder}/{args.expname}/imgs_test_all/',
                                 N_vis=-1, N_samples=-1, white_bg = white_bg, ndc_ray=ndc_ray,device=device,compute_extra_metrics=False)
