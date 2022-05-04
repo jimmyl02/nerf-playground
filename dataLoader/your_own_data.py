@@ -9,36 +9,6 @@ from torchvision import transforms as T
 
 from .ray_utils import *
 
-def render_path_spiral(c2w, up, rads, focal, zdelta, zrate, N_rots=2, N=120):
-    render_poses = []
-    rads = np.array(list(rads) + [1.])
-
-    for theta in np.linspace(0., 2. * np.pi * N_rots, N + 1)[:-1]:
-        c = np.dot(c2w[:3, :4], np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.]) * rads)
-        z = normalize(c - np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.])))
-        render_poses.append(viewmatrix(z, up, c))
-    return render_poses
-
-
-def get_spiral(c2ws_all, near_fars, rads_scale=1.0, N_views=120):
-    # center pose
-    c2w = average_poses(c2ws_all)
-
-    # Get average pose
-    up = normalize(c2ws_all[:, :3, 1].sum(0))
-
-    # Find a reasonable "focus depth" for this dataset
-    dt = 0.75
-    close_depth, inf_depth = near_fars.min() * 0.9, near_fars.max() * 5.0
-    focal = 1.0 / (((1.0 - dt) / close_depth + dt / inf_depth))
-
-    # Get radii for spiral path
-    zdelta = near_fars.min() * .2
-    tt = c2ws_all[:, :3, 3]
-    rads = np.percentile(np.abs(tt), 90, 0) * rads_scale
-    render_poses = render_path_spiral(c2w, up, rads, focal, zdelta, zrate=.5, N=N_views)
-    return np.stack(render_poses)
-
 def circle(radius=3.5, h=0.0, axis='z', t0=0, r=1):
     if axis == 'z':
         return lambda t: [radius * np.cos(r * t + t0), radius * np.sin(r * t + t0), h]
@@ -120,8 +90,8 @@ class YourOwnDataset(Dataset):
         self.define_transforms()
 
         # self.scene_bbox = torch.tensor([[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]])
-        # self.scene_bbox = torch.tensor([[-8.0, -8.0, -8.0], [8.0, 8.0, 8.0]])
-        self.scene_bbox = torch.tensor([[-4.0, -4.0, -4.0], [4.0, 4.0, 4.0]])
+        self.scene_bbox = torch.tensor([[-8.0, -8.0, -8.0], [8.0, 8.0, 8.0]])
+        #self.scene_bbox = torch.tensor([[-4.0, -4.0, -4.0], [4.0, 4.0, 4.0]])
         self.blender2opencv = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
         self.read_meta()
         self.define_proj_mat()
@@ -133,10 +103,9 @@ class YourOwnDataset(Dataset):
 
         # build render path
         center = torch.mean(self.scene_bbox, dim=0)
-        radius = torch.norm(self.scene_bbox[1]-center)*0.4 # 1.2
-        print(radius)
+        radius = torch.norm(self.scene_bbox[1]-center)*0.6 # 1.2
         up = torch.mean(self.poses[:, :3, 1], dim=0).tolist()
-        pos_gen = circle(radius=radius, h=-0.2*up[1], axis='y')
+        pos_gen = circle(radius=radius, h=-0.2*up[1], axis='z')
         self.render_path = gen_path(pos_gen, up=up,frames=200)
         self.render_path[:, :3, 3] += center
 
